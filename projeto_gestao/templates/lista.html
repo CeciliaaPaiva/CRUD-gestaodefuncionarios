@@ -1,42 +1,248 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card-panel" style="margin-top: 20px;">
-    <h5>Lista de Funcionários</h5>
-    <form method="GET" action="/lista">
-        <div class="row">
-            <div class="col s8">
-                <select name="departamento" class="browser-default">
-                    <option value="Todos">Todos os Departamentos</option>
-                    <option value="TI">TI</option>
-                    <option value="RH">RH</option>
-                    <option value="Vendas">Vendas</option>
-                </select>
-            </div>
-            <div class="col s4">
-                <button class="btn blue">Filtrar</button>
-            </div>
-        </div>
-    </form>
 
-    <table class="highlight">
-        <thead>
-            <tr>
-                <th>Nome</th><th>Cargo</th><th>Depto</th><th>Salário</th><th>Ações</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for f in funcionarios %}
-            <tr>
-                <td>{{ f['nome'] }}</td>
-                <td>{{ f['cargo'] }}</td>
-                <td>{{ f['departamento'] }}</td>
-                <td>R$ {{ f['salario'] }}</td>
-                <td>
-                    <a href="/delete/{{ f['id'] }}" class="btn-small red"><i class="material-icons">delete_forever</i></a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<h5>Funcionários</h5>
+
+<!-- BOTÃO ADICIONAR -->
+<div style="margin-bottom:20px;">
+<button class="btn green modal-trigger" href="#modalAdd">
+<i class="material-icons left">add</i>Adicionar Funcionário
+</button>
 </div>
+
+<table class="highlight">
+
+<thead>
+<tr>
+<th>Nome</th>
+<th>Cargo</th>
+<th>Departamento</th>
+<th>Salário</th>
+<th>Ações</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for f in funcionarios %}
+
+<tr>
+
+<td>{{f["nome"]}}</td>
+<td>{{f["cargo"]}}</td>
+<td>{{f["departamento"]}}</td>
+<td>R$ {{f["salario"]}}</td>
+
+<td>
+
+<button class="btn blue btn-small modal-trigger" href="#modal{{f['id']}}">
+<i class="material-icons">edit</i>
+</button>
+
+<a href="/delete/{{f['id']}}" class="btn red btn-small">
+<i class="material-icons">delete</i>
+</a>
+
+</td>
+
+</tr>
+
+<!-- MODAL EDITAR -->
+
+<div id="modal{{f['id']}}" class="modal">
+
+<div class="modal-content">
+
+<h5>Editar Funcionário</h5>
+
+<div class="row">
+
+<div class="input-field col s6">
+<input id="nome{{f['id']}}" value="{{f['nome']}}">
+<label class="active">Nome</label>
+</div>
+
+<div class="input-field col s6">
+<input id="cargo{{f['id']}}" value="{{f['cargo']}}">
+<label class="active">Cargo</label>
+</div>
+
+<div class="input-field col s6">
+<input id="salario{{f['id']}}" type="number" value="{{f['salario']}}">
+<label class="active">Salário</label>
+</div>
+
+<div class="input-field col s6">
+
+<select id="departamento{{f['id']}}" class="browser-default">
+
+<option value="TI" {% if f['departamento']=="TI" %}selected{% endif %}>TI</option>
+<option value="RH" {% if f['departamento']=="RH" %}selected{% endif %}>RH</option>
+<option value="Financeiro" {% if f['departamento']=="Financeiro" %}selected{% endif %}>Financeiro</option>
+<option value="Vendas" {% if f['departamento']=="Vendas" %}selected{% endif %}>Vendas</option>
+
+</select>
+
+</div>
+
+<div class="input-field col s6">
+<input id="admissao{{f['id']}}" type="date" value="{{f['admissao']}}">
+</div>
+
+</div>
+
+</div>
+
+<div class="modal-footer">
+
+<button class="btn green" onclick="editar({{f['id']}})">Salvar</button>
+
+<a href="#!" class="modal-close btn-flat">Cancelar</a>
+
+</div>
+
+</div>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+
+<!-- MODAL ADICIONAR FUNCIONARIO -->
+
+<div id="modalAdd" class="modal">
+
+<div class="modal-content">
+
+<h5>Novo Funcionário</h5>
+
+<div class="row">
+
+<div class="input-field col s6">
+<input id="nomeAdd">
+<label>Nome</label>
+</div>
+
+<div class="input-field col s6">
+<input id="cargoAdd">
+<label>Cargo</label>
+</div>
+
+<div class="input-field col s6">
+<input id="salarioAdd" type="number">
+<label>Salário</label>
+</div>
+
+<div class="input-field col s6">
+
+<select id="departamentoAdd" class="browser-default">
+
+<option value="TI">TI</option>
+<option value="RH">RH</option>
+<option value="Financeiro">Financeiro</option>
+<option value="Vendas">Vendas</option>
+
+</select>
+
+</div>
+
+<div class="input-field col s6">
+<input id="admissaoAdd" type="date">
+</div>
+
+</div>
+
+</div>
+
+<div class="modal-footer">
+
+<button class="btn green" onclick="adicionar()">Salvar</button>
+
+<a href="#!" class="modal-close btn-flat">Cancelar</a>
+
+</div>
+
+</div>
+
+
+<script>
+
+document.addEventListener('DOMContentLoaded', function() {
+
+var elems = document.querySelectorAll('.modal');
+
+M.Modal.init(elems);
+
+});
+
+
+function adicionar(){
+
+let data={
+
+nome:document.getElementById("nomeAdd").value,
+cargo:document.getElementById("cargoAdd").value,
+departamento:document.getElementById("departamentoAdd").value,
+salario:document.getElementById("salarioAdd").value,
+admissao:document.getElementById("admissaoAdd").value
+
+}
+
+fetch("/add",{
+
+method:"POST",
+
+headers:{"Content-Type":"application/json"},
+
+body:JSON.stringify(data)
+
+})
+
+.then(()=>{
+
+M.toast({html:"Funcionário adicionado!"})
+
+location.reload()
+
+})
+
+}
+
+
+function editar(id){
+
+let data={
+
+nome:document.getElementById("nome"+id).value,
+cargo:document.getElementById("cargo"+id).value,
+departamento:document.getElementById("departamento"+id).value,
+salario:document.getElementById("salario"+id).value,
+admissao:document.getElementById("admissao"+id).value
+
+}
+
+fetch("/edit/"+id,{
+
+method:"POST",
+
+headers:{"Content-Type":"application/json"},
+
+body:JSON.stringify(data)
+
+})
+
+.then(()=>{
+
+M.toast({html:"Funcionário atualizado!"})
+
+location.reload()
+
+})
+
+}
+
+</script>
+
 {% endblock %}

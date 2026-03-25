@@ -1,94 +1,85 @@
 {% extends "base.html" %}
 {% block content %}
 
-<style>
-    body { background-color: #f5f5f5; }
-    .card-panel { border-radius: 8px; margin-top: 1rem; }
-    /* Altura fixa para os gráficos não sumirem */
-    #grafico_barra, #grafico_pizza { 
-        min-height: 450px !important; 
-        width: 100%;
-    }
-</style>
+<div class="row">
 
-<div class="card-panel">
-    <h5><i class="material-icons left">add_circle</i>Novo Cadastro</h5>
-    <div class="row">
-        <div class="input-field col s12 m3"><input id="nome" type="text"><label>Nome</label></div>
-        <div class="input-field col s12 m3"><input id="cargo" type="text"><label>Cargo</label></div>
-        <div class="input-field col s12 m3">
-            <select id="departamento" class="browser-default" style="margin-top:10px; border: 1px solid #ccc;">
-                <option value="TI">TI</option>
-                <option value="RH">RH</option>
-                <option value="Vendas">Vendas</option>
-                <option value="Financeiro">Financeiro</option>
-            </select>
-        </div>
-        <div class="input-field col s12 m2"><input id="salario" type="number"><label>Salário</label></div>
-        <div class="input-field col s12 m1"><input id="admissao" type="date"></div>
-        <div class="col s12">
-            <button class="btn blue right" onclick="salvar()">Salvar</button>
-        </div>
-    </div>
+<div class="col s3">
+<div class="card blue white-text center">
+<h5>Total Funcionários</h5>
+<h4 id="total"></h4>
+</div>
 </div>
 
-<div id="grafico_barra" class="card-panel"></div>
-<div id="grafico_pizza" class="card-panel"></div>
+<div class="col s3">
+<div class="card green white-text center">
+<h5>Média Salarial</h5>
+<h4 id="media"></h4>
+</div>
+</div>
+
+<div class="col s3">
+<div class="card red white-text center">
+<h5>Maior Salário</h5>
+<h4 id="maior"></h4>
+</div>
+</div>
+
+<div class="col s3">
+<div class="card purple white-text center">
+<h5>Custo Total</h5>
+<h4 id="custo"></h4>
+</div>
+</div>
+
+</div>
+
+<div class="row">
+
+<div class="col s12 m6">
+<div id="grafico_barra"></div>
+</div>
+
+<div class="col s12 m6">
+<div id="grafico_pizza"></div>
+</div>
+
+</div>
+
+<div class="row">
+
+<div class="col s12">
+<div id="grafico_depto"></div>
+</div>
+
+</div>
 
 <script>
-    // 1. Função única para salvar
-    function salvar() {
-        const data = {
-            nome: document.getElementById('nome').value,
-            cargo: document.getElementById('cargo').value,
-            departamento: document.getElementById('departamento').value,
-            salario: document.getElementById('salario').value,
-            admissao: document.getElementById('admissao').value
-        };
 
-        // Validação simples
-        if(!data.nome || !data.salario) {
-            M.toast({html: 'Preencha o nome e o salário!', classes: 'red'});
-            return;
-        }
+function carregar(){
 
-        fetch('/add', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        })
-        .then(res => {
-            if(res.ok) {
-                M.toast({html: 'Cadastrado com sucesso!', classes: 'green'});
-                // Limpa os campos após salvar
-                document.getElementById('nome').value = '';
-                document.getElementById('cargo').value = '';
-                document.getElementById('salario').value = '';
-                carregarDash(); // Atualiza os gráficos imediatamente
-            } else {
-                M.toast({html: 'Erro ao salvar colaborador', classes: 'red'});
-            }
-        })
-        .catch(err => console.error("Erro:", err));
-    }
+fetch("/data")
+.then(res=>res.json())
+.then(data=>{
 
-    // 2. Função única para carregar o Dashboard
-    function carregarDash() {
-        fetch('/data')
-        .then(res => res.json())
-        .then(data => {
-            if(data.barraJSON) {
-                const barra = JSON.parse(data.barraJSON);
-                const pizza = JSON.parse(data.pizzaJSON);
-                
-                // Use as configurações que vêm do Python sem sobrescrever o eixo Y aqui
-                Plotly.newPlot('grafico_barra', barra.data, barra.layout, {responsive: true});
-                Plotly.newPlot('grafico_pizza', pizza.data, pizza.layout, {responsive: true});
-            }
-        });
-    }
+document.getElementById("total").innerText=data.total
+document.getElementById("media").innerText="R$ "+data.media
+document.getElementById("maior").innerText="R$ "+data.maior
+document.getElementById("custo").innerText="R$ "+data.custo
 
-    // Inicializa os gráficos ao abrir a página
-    window.onload = carregarDash;
+let barra=JSON.parse(data.barra)
+let pizza=JSON.parse(data.pizza)
+let depto=JSON.parse(data.depto)
+
+Plotly.newPlot("grafico_barra",barra.data,barra.layout)
+Plotly.newPlot("grafico_pizza",pizza.data,pizza.layout)
+Plotly.newPlot("grafico_depto",depto.data,depto.layout)
+
+})
+
+}
+
+window.onload=carregar
+
 </script>
+
 {% endblock %}

@@ -2,110 +2,162 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 import sqlite3
 import pandas as pd
 import plotly.express as px
-import plotly.utils
+import plotly
 import json
 
 app = Flask(__name__)
 
-def get_db_connection():
-    conn = sqlite3.connect('database.db')
+def get_db():
+    conn = sqlite3.connect("database.db")
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
-    conn = get_db_connection()
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS funcionarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            cargo TEXT NOT NULL,
-            departamento TEXT NOT NULL,
-            salario REAL NOT NULL,
-            admissao TEXT NOT NULL
-        )
-    ''')
+    conn = get_db()
+    conn.execute("""
+    CREATE TABLE IF NOT EXISTS funcionarios(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT,
+        cargo TEXT,
+        departamento TEXT,
+        salario REAL,
+        admissao TEXT
+    )
+    """)
     conn.commit()
     conn.close()
 
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/lista')
+@app.route("/lista")
 def lista():
-    conn = get_db_connection()
-    funcionarios = conn.execute('SELECT * FROM funcionarios').fetchall()
+    conn = get_db()
+    funcionarios = conn.execute("SELECT * FROM funcionarios").fetchall()
     conn.close()
-    return render_template('lista.html', funcionarios=funcionarios)
+    return render_template("lista.html", funcionarios=funcionarios)
 
-@app.route('/add', methods=['POST'])
-def add_funcionario():
+@app.route("/add", methods=["POST"])
+def add():
+
     data = request.json
-    try:
-        # Forçamos a conversão para garantir que o gráfico funcione
-        sal_float = float(str(data['salario']).replace(',', '.'))
-        conn = get_db_connection()
-        conn.execute('''INSERT INTO funcionarios (nome, cargo, departamento, salario, admissao) 
-                     VALUES (?, ?, ?, ?, ?)''',
-                     (data['nome'], data['cargo'], data['departamento'], sal_float, data['admissao']))
-        conn.commit()
-        conn.close()
-        return jsonify({"status": "sucesso"})
-    except Exception as e:
-        print(f"Erro ao inserir: {e}")
-        return jsonify({"status": "erro"}), 500
 
-@app.route('/data')
-def get_data():
-    conn = sqlite3.connect('database.db')
-    df = pd.read_sql_query("SELECT * FROM funcionarios", conn)
+    conn = get_db()
+
+    conn.execute("""
+    INSERT INTO funcionarios(nome,cargo,departamento,salario,admissao)
+    VALUES(?,?,?,?,?)
+    """,(data["nome"],data["cargo"],data["departamento"],float(data["salario"]),data["admissao"]))
+
+    conn.commit()
     conn.close()
-    
+
+    return jsonify({"status":"ok"})
+
+
+@app.route("/data")
+def data():
+
+    conn = get_db()
+
+    df = pd.read_sql_query("SELECT * FROM funcionarios", conn)
+
+    conn.close()
+
     if df.empty:
-        return jsonify({"barraJSON": None})
-    
-    # 1. Limpeza rigorosa: converte para numérico e remove o que não for número
-    df['salario'] = pd.to_numeric(df['salario'], errors='coerce').fillna(0)
+        return jsonify({"status":"empty"})
 
-    # 2. Só gera o gráfico se houver salários maiores que zero
-    max_salario = df['salario'].max()
+    # métricas
+    total_func = len(df)
+    media_sal = df["salario"].mean()
+    maior_sal = df["salario"].max()
+    custo_total = df["salario"].sum()
+
+    # gráfico barras
+
     
-    fig_barra = px.bar(
-        df, 
-        x='nome', 
-        y='salario', 
-        color='departamento',
-        title="Salários por Colaborador",
-        text_auto='.2s', # Mostra o valor em cima da barra
-        labels={'salario': 'Salário (R$)', 'nome': 'Funcionário'}
+    
+    
+    fig_bar = px.scatter(
+        df,
+        x="nome",
+        y="salario",
+        color="departamento",
+        size="salario",
+        title="Distribuição de Salários dos Funcionários"
     )
 
-    # FORÇAR O EIXO Y: Isso garante que as colunas apareçam
-    fig_barra.update_layout(
-        yaxis=dict(range=[0, max_salario * 1.2], autorange=False),
-        xaxis={'type': 'category'} # Garante que os nomes não virem números
+    fig_bar.update_traces(
+        text=df["salario"],
+        textposition="top center"
     )
 
+    # gráfico pizza
     fig_pizza = px.pie(
-        df, 
-        names='departamento', 
-        values='salario', 
-        title="Distribuição de Custos por Departamento"
+        df,
+        names="departamento",
+        values="salario",
+        title="Custo por Departamento"
     )
-    
+
+    # gráfico funcionários por depto
+    fig_depto = px.histogram(
+        df,
+        x="departamento",
+        title="Funcionários por Departamento"
+    )
+
     return jsonify({
-        "barraJSON": json.dumps(fig_barra, cls=plotly.utils.PlotlyJSONEncoder),
-        "pizzaJSON": json.dumps(fig_pizza, cls=plotly.utils.PlotlyJSONEncoder)
+
+        "total": total_func,
+        "media": round(media_sal,2),
+        "maior": maior_sal,
+        "custo": custo_total,
+
+        "barra": json.dumps(fig_bar, cls=plotly.utils.PlotlyJSONEncoder),
+        "pizza": json.dumps(fig_pizza, cls=plotly.utils.PlotlyJSONEncoder),
+        "depto": json.dumps(fig_depto, cls=plotly.utils.PlotlyJSONEncoder)
+
     })
 
-@app.route('/delete/<int:id>')
+
+@app.route("/delete/<int:id>")
 def delete(id):
-    conn = get_db_connection()
-    conn.execute('DELETE FROM funcionarios WHERE id = ?', (id,))
+
+    conn = get_db()
+    conn.execute("DELETE FROM funcionarios WHERE id=?", (id,))
     conn.commit()
     conn.close()
-    return redirect(url_for('lista'))
 
-if __name__ == '__main__':
+    return redirect(url_for("lista"))
+
+
+@app.route("/edit/<int:id>", methods=["POST"])
+def edit(id):
+
+    data = request.json
+
+    conn = get_db()
+
+    conn.execute("""
+    UPDATE funcionarios
+    SET nome=?, cargo=?, departamento=?, salario=?, admissao=?
+    WHERE id=?
+    """,(
+        data["nome"],
+        data["cargo"],
+        data["departamento"],
+        float(data["salario"]),
+        data["admissao"],
+        id
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"status":"ok"})
+
+if __name__ == "__main__":
     init_db()
     app.run(debug=True)
