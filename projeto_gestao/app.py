@@ -1,42 +1,36 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify
 import sqlite3
 import pandas as pd
-import plotly.express as px
-import plotly
-import json
 
 app = Flask(__name__)
 
+DATABASE = "database.db"
+
+
 def get_db():
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db():
-    conn = get_db()
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS funcionarios(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT,
-        cargo TEXT,
-        departamento TEXT,
-        salario REAL,
-        admissao TEXT
-    )
-    """)
-    conn.commit()
-    conn.close()
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
-@app.route("/lista")
-def lista():
+
+@app.route("/funcionarios")
+def funcionarios():
+
     conn = get_db()
-    funcionarios = conn.execute("SELECT * FROM funcionarios").fetchall()
+
+    funcionarios = conn.execute(
+        "SELECT * FROM funcionarios"
+    ).fetchall()
+
     conn.close()
+
     return render_template("lista.html", funcionarios=funcionarios)
+
 
 @app.route("/add", methods=["POST"])
 def add():
@@ -45,96 +39,41 @@ def add():
 
     conn = get_db()
 
-    conn.execute("""
-    INSERT INTO funcionarios(nome,cargo,departamento,salario,admissao)
-    VALUES(?,?,?,?,?)
-    """,(data["nome"],data["cargo"],data["departamento"],float(data["salario"]),data["admissao"]))
+    conn.execute(
+        """
+        INSERT INTO funcionarios
+        (nome,cargo,departamento,salario,admissao)
+        VALUES (?,?,?,?,?)
+        """,
+        (
+            data["nome"],
+            data["cargo"],
+            data["departamento"],
+            float(data["salario"]),
+            data["admissao"]
+        )
+    )
 
     conn.commit()
     conn.close()
 
-    return jsonify({"status":"ok"})
-
-
-@app.route("/data")
-def data():
-
-    conn = get_db()
-
-    df = pd.read_sql_query("SELECT * FROM funcionarios", conn)
-
-    conn.close()
-
-    if df.empty:
-        return jsonify({"status":"empty"})
-
-    # métricas
-    total_func = len(df)
-    media_sal = df["salario"].mean()
-    maior_sal = df["salario"].max()
-    custo_total = df["salario"].sum()
-
-    # gráfico barras
-
-    
-    
-    
-    fig_bar = px.scatter(
-        df,
-        x="nome",
-        y="salario",
-        color="departamento",
-        size="salario",
-        title="Distribuição de Salários dos Funcionários"
-    )
-
-    fig_bar.update_traces(
-        text=df["salario"],
-        textposition="top center"
-    )
-
-    # gráfico pizza
-    fig_pizza = px.pie(
-        df,
-        names="departamento",
-        values="salario",
-        title="Custo por Departamento"
-    )
-
-    # gráfico funcionários por depto
-    fig_depto = px.histogram(
-        df,
-        x="departamento",
-        title="Funcionários por Departamento"
-    )
-
-    return jsonify({
-
-        "total": total_func,
-        "media": round(media_sal,2),
-        "maior": maior_sal,
-        "custo": custo_total,
-
-        "barra": json.dumps(fig_bar, cls=plotly.utils.PlotlyJSONEncoder),
-        "pizza": json.dumps(fig_pizza, cls=plotly.utils.PlotlyJSONEncoder),
-        "depto": json.dumps(fig_depto, cls=plotly.utils.PlotlyJSONEncoder)
-
-    })
+    return jsonify({"status": "ok"})
 
 
 @app.route("/delete/<int:id>")
 def delete(id):
 
     conn = get_db()
+
     conn.execute("DELETE FROM funcionarios WHERE id=?", (id,))
+
     conn.commit()
     conn.close()
 
-    return redirect(url_for("lista"))
+    return jsonify({"status": "ok"})
 
-
-@app.route("/edit/<int:id>", methods=["POST"])
-def edit(id):
+@app.route("/editar/<int:id>", methods=["POST"])
+def editar(id):
 
     data = request.json
 
@@ -144,7 +83,8 @@ def edit(id):
     UPDATE funcionarios
     SET nome=?, cargo=?, departamento=?, salario=?, admissao=?
     WHERE id=?
-    """,(
+    """,
+    (
         data["nome"],
         data["cargo"],
         data["departamento"],
@@ -158,6 +98,65 @@ def edit(id):
 
     return jsonify({"status":"ok"})
 
+
+@app.route("/data")
+def data():
+
+    conn = get_db()
+
+    df = pd.read_sql_query(
+        "SELECT nome, salario, departamento, admissao FROM funcionarios",
+        conn
+    )
+
+    conn.close()
+
+    df["admissao"] = pd.to_datetime(df["admissao"])
+
+    # filtro
+    departamento = request.args.get("departamento")
+
+    if departamento and departamento != "todos":
+        df = df[df["departamento"] == departamento]
+
+    # métricas
+    total_funcionarios = len(df)
+    media_salarial = round(df["salario"].mean(), 2) if len(df) > 0 else 0
+    maior_salario = df["salario"].max() if len(df) > 0 else 0
+    menor_salario = df["salario"].min() if len(df) > 0 else 0
+
+    # departamentos
+    departamentos = df["departamento"].value_counts()
+
+    # ranking salários
+    ranking = df.sort_values(by="salario", ascending=False).head(5)
+
+    # admissões por mês
+    admissoes_mes = df["admissao"].dt.month.value_counts().sort_index()
+
+    return jsonify({
+
+        "nomes": df["nome"].tolist(),
+        "salarios": df["salario"].tolist(),
+
+        "departamentos_labels": departamentos.index.tolist(),
+        "departamentos_valores": departamentos.values.tolist(),
+
+        "ranking_nomes": ranking["nome"].tolist(),
+        "ranking_salarios": ranking["salario"].tolist(),
+
+        "meses": admissoes_mes.index.tolist(),
+        "admissoes": admissoes_mes.values.tolist(),
+
+        "metricas": {
+            "total": total_funcionarios,
+            "media": media_salarial,
+            "maior": maior_salario,
+            "menor": menor_salario
+        }
+
+    })
+
+
 if __name__ == "__main__":
-    init_db()
     app.run(debug=True)

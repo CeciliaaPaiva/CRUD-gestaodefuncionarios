@@ -1,33 +1,66 @@
 {% extends "base.html" %}
 {% block content %}
 
+<h4>Dashboard</h4>
+
+<div class="input-field" style="width:300px">
+
+<p><b>Filtrar por departamento:</b></p>
+
+<select id="filtroDepartamento" class="browser-default">
+<option value="todos">Todos</option>
+<option value="TI">TI</option>
+<option value="Financeiro">Financeiro</option>
+<option value="RH">Recursos Humanos</option>
+<option value="Marketing">Marketing</option>
+<option value="Vendas">Vendas</option>
+<option value="Administrativo">Administrativo</option>
+<option value="Logística">Logística</option>
+<option value="Atendimento">Atendimento</option>
+<option value="Jurídico">Jurídico</option>
+<option value="Operações">Operações</option>
+
+</select>
+
+</div>
+
+<br>
+
 <div class="row">
 
 <div class="col s3">
-<div class="card blue white-text center">
-<h5>Total Funcionários</h5>
-<h4 id="total"></h4>
+<div class="card blue white-text">
+<div class="card-content">
+<span>Total Funcionários</span>
+<h5 id="total"></h5>
 </div>
-</div>
-
-<div class="col s3">
-<div class="card green white-text center">
-<h5>Média Salarial</h5>
-<h4 id="media"></h4>
 </div>
 </div>
 
 <div class="col s3">
-<div class="card red white-text center">
-<h5>Maior Salário</h5>
-<h4 id="maior"></h4>
+<div class="card green white-text">
+<div class="card-content">
+<span>Média Salarial</span>
+<h5 id="media"></h5>
+</div>
 </div>
 </div>
 
 <div class="col s3">
-<div class="card purple white-text center">
-<h5>Custo Total</h5>
-<h4 id="custo"></h4>
+<div class="card orange white-text">
+<div class="card-content">
+<span>Maior Salário</span>
+<h5 id="maior"></h5>
+</div>
+</div>
+</div>
+
+<div class="col s3">
+<div class="card red white-text">
+<div class="card-content">
+<span>Menor Salário</span>
+<h5 id="menor"></h5>
+</div>
 </div>
 </div>
 
@@ -36,11 +69,11 @@
 <div class="row">
 
 <div class="col s12 m6">
-<div id="grafico_barra"></div>
+<canvas id="graficoSalarios"></canvas>
 </div>
 
 <div class="col s12 m6">
-<div id="grafico_pizza"></div>
+<canvas id="graficoDepartamentos"></canvas>
 </div>
 
 </div>
@@ -48,37 +81,133 @@
 <div class="row">
 
 <div class="col s12">
-<div id="grafico_depto"></div>
+<canvas id="graficoDistribuicao"></canvas>
 </div>
 
 </div>
+
+<h5>Ranking de Salários</h5>
+<canvas id="graficoRanking"></canvas>
+
+<h5>Admissões por Mês</h5>
+<canvas id="graficoAdmissoes"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
 
-function carregar(){
+let charts = []
 
-fetch("/data")
-.then(res=>res.json())
-.then(data=>{
+function destruirGraficos(){
 
-document.getElementById("total").innerText=data.total
-document.getElementById("media").innerText="R$ "+data.media
-document.getElementById("maior").innerText="R$ "+data.maior
-document.getElementById("custo").innerText="R$ "+data.custo
+charts.forEach(chart => chart.destroy())
 
-let barra=JSON.parse(data.barra)
-let pizza=JSON.parse(data.pizza)
-let depto=JSON.parse(data.depto)
+charts = []
 
-Plotly.newPlot("grafico_barra",barra.data,barra.layout)
-Plotly.newPlot("grafico_pizza",pizza.data,pizza.layout)
-Plotly.newPlot("grafico_depto",depto.data,depto.layout)
+}
+
+function carregarDados(departamento="todos"){
+
+fetch("/data?departamento="+departamento)
+
+.then(res => res.json())
+
+.then(data => {
+
+destruirGraficos()
+
+document.getElementById("total").innerText = data.metricas.total
+document.getElementById("media").innerText = "R$ "+data.metricas.media
+document.getElementById("maior").innerText = "R$ "+data.metricas.maior
+document.getElementById("menor").innerText = "R$ "+data.metricas.menor
+
+charts.push(new Chart(document.getElementById("graficoSalarios"),{
+
+type:"bar",
+
+data:{
+labels:data.nomes,
+
+datasets:[{
+label:"Salários",
+data:data.salarios
+}]
+}
+
+}))
+
+charts.push(new Chart(document.getElementById("graficoDepartamentos"),{
+
+type:"pie",
+
+data:{
+labels:data.departamentos_labels,
+
+datasets:[{
+data:data.departamentos_valores
+}]
+}
+
+}))
+
+charts.push(new Chart(document.getElementById("graficoDistribuicao"),{
+
+type:"line",
+
+data:{
+labels:data.nomes,
+
+datasets:[{
+label:"Distribuição Salarial",
+data:data.salarios
+}]
+}
+
+}))
+
+charts.push(new Chart(document.getElementById("graficoRanking"),{
+
+type:"bar",
+
+data:{
+labels:data.ranking_nomes,
+
+datasets:[{
+label:"Top Salários",
+data:data.ranking_salarios
+}]
+}
+
+}))
+
+charts.push(new Chart(document.getElementById("graficoAdmissoes"),{
+
+type:"line",
+
+data:{
+labels:data.meses,
+
+datasets:[{
+label:"Contratações",
+data:data.admissoes
+}]
+}
+
+}))
 
 })
 
 }
 
-window.onload=carregar
+carregarDados()
+
+document.getElementById("filtroDepartamento")
+
+.addEventListener("change",function(){
+
+carregarDados(this.value)
+
+})
 
 </script>
 

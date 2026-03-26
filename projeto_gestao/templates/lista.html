@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h5>Funcionários</h5>
+<h4>Funcionários</h4>
 
-<!-- BOTÃO ADICIONAR -->
-<div style="margin-bottom:20px;">
-<button class="btn green modal-trigger" href="#modalAdd">
-<i class="material-icons left">add</i>Adicionar Funcionário
+<button class="btn blue modal-trigger"
+data-target="modalFuncionario"
+onclick="abrirAdicionar()">
+Adicionar Funcionário
 </button>
-</div>
 
-<table class="highlight">
+<br><br>
+
+<table class="striped">
 
 <thead>
 <tr>
@@ -18,6 +19,7 @@
 <th>Cargo</th>
 <th>Departamento</th>
 <th>Salário</th>
+<th>Admissão</th>
 <th>Ações</th>
 </tr>
 </thead>
@@ -32,76 +34,30 @@
 <td>{{f["cargo"]}}</td>
 <td>{{f["departamento"]}}</td>
 <td>R$ {{f["salario"]}}</td>
+<td>{{f["admissao"]}}</td>
 
 <td>
 
-<button class="btn blue btn-small modal-trigger" href="#modal{{f['id']}}">
-<i class="material-icons">edit</i>
+<button class="btn orange"
+onclick="editarFuncionario(
+{{f['id']}},
+'{{f['nome']}}',
+'{{f['cargo']}}',
+'{{f['departamento']}}',
+{{f['salario']}},
+'{{f['admissao']}}'
+)">
+Editar
 </button>
 
-<a href="/delete/{{f['id']}}" class="btn red btn-small">
-<i class="material-icons">delete</i>
-</a>
+<button class="btn red"
+onclick="abrirModalDelete({{f['id']}},'{{f['nome']}}')">
+Remover
+</button>
 
 </td>
 
 </tr>
-
-<!-- MODAL EDITAR -->
-
-<div id="modal{{f['id']}}" class="modal">
-
-<div class="modal-content">
-
-<h5>Editar Funcionário</h5>
-
-<div class="row">
-
-<div class="input-field col s6">
-<input id="nome{{f['id']}}" value="{{f['nome']}}">
-<label class="active">Nome</label>
-</div>
-
-<div class="input-field col s6">
-<input id="cargo{{f['id']}}" value="{{f['cargo']}}">
-<label class="active">Cargo</label>
-</div>
-
-<div class="input-field col s6">
-<input id="salario{{f['id']}}" type="number" value="{{f['salario']}}">
-<label class="active">Salário</label>
-</div>
-
-<div class="input-field col s6">
-
-<select id="departamento{{f['id']}}" class="browser-default">
-
-<option value="TI" {% if f['departamento']=="TI" %}selected{% endif %}>TI</option>
-<option value="RH" {% if f['departamento']=="RH" %}selected{% endif %}>RH</option>
-<option value="Financeiro" {% if f['departamento']=="Financeiro" %}selected{% endif %}>Financeiro</option>
-<option value="Vendas" {% if f['departamento']=="Vendas" %}selected{% endif %}>Vendas</option>
-
-</select>
-
-</div>
-
-<div class="input-field col s6">
-<input id="admissao{{f['id']}}" type="date" value="{{f['admissao']}}">
-</div>
-
-</div>
-
-</div>
-
-<div class="modal-footer">
-
-<button class="btn green" onclick="editar({{f['id']}})">Salvar</button>
-
-<a href="#!" class="modal-close btn-flat">Cancelar</a>
-
-</div>
-
-</div>
 
 {% endfor %}
 
@@ -110,46 +66,61 @@
 </table>
 
 
-<!-- MODAL ADICIONAR FUNCIONARIO -->
+<!-- MODAL FUNCIONÁRIO -->
 
-<div id="modalAdd" class="modal">
+<div id="modalFuncionario" class="modal">
 
 <div class="modal-content">
 
-<h5>Novo Funcionário</h5>
+<h5 id="tituloForm">Adicionar Funcionário</h5>
 
 <div class="row">
 
-<div class="input-field col s6">
-<input id="nomeAdd">
-<label>Nome</label>
+<div class="input-field col s12 m6">
+<input id="nome" type="text">
+<label for="nome">Nome</label>
 </div>
 
-<div class="input-field col s6">
-<input id="cargoAdd">
-<label>Cargo</label>
+<div class="input-field col s12 m6">
+<input id="cargo" type="text">
+<label for="cargo">Cargo</label>
 </div>
 
-<div class="input-field col s6">
-<input id="salarioAdd" type="number">
-<label>Salário</label>
-</div>
 
-<div class="input-field col s6">
+<!-- SELECT DEPARTAMENTO -->
 
-<select id="departamentoAdd" class="browser-default">
+<div class="input-field col s12 m6">
+
+<select id="departamento">
+
+<option value="" disabled selected>Escolha o departamento</option>
 
 <option value="TI">TI</option>
-<option value="RH">RH</option>
 <option value="Financeiro">Financeiro</option>
+<option value="RH">Recursos Humanos</option>
+<option value="Marketing">Marketing</option>
 <option value="Vendas">Vendas</option>
+<option value="Administrativo">Administrativo</option>
+<option value="Logística">Logística</option>
+<option value="Atendimento">Atendimento</option>
+<option value="Jurídico">Jurídico</option>
+<option value="Operações">Operações</option>
 
 </select>
 
+<label>Departamento</label>
+
 </div>
 
-<div class="input-field col s6">
-<input id="admissaoAdd" type="date">
+
+<div class="input-field col s12 m6">
+<input id="salario" type="number">
+<label for="salario">Salário</label>
+</div>
+
+<div class="input-field col s12 m6">
+<input id="admissao" type="date">
+<label for="admissao" class="active">Admissão</label>
 </div>
 
 </div>
@@ -158,88 +129,177 @@
 
 <div class="modal-footer">
 
-<button class="btn green" onclick="adicionar()">Salvar</button>
+<button class="btn green" onclick="salvarFuncionario()">
+Salvar
+</button>
 
-<a href="#!" class="modal-close btn-flat">Cancelar</a>
+<a class="modal-close btn grey">
+Cancelar
+</a>
 
 </div>
 
 </div>
+
+
+<!-- MODAL DELETE -->
+
+<div id="modalDelete" class="modal">
+
+<div class="modal-content">
+
+<h5>Confirmar remoção</h5>
+
+<p id="textoDelete"></p>
+
+</div>
+
+<div class="modal-footer">
+
+<button class="btn red" onclick="confirmarDelete()">
+Deletar
+</button>
+
+<a class="modal-close btn grey">
+Cancelar
+</a>
+
+</div>
+
+</div>
+
 
 
 <script>
 
-document.addEventListener('DOMContentLoaded', function() {
-
-var elems = document.querySelectorAll('.modal');
-
-M.Modal.init(elems);
-
-});
+let funcionarioEditando = null
+let funcionarioDeletar = null
 
 
-function adicionar(){
+document.addEventListener('DOMContentLoaded', function(){
 
-let data={
+const modais = document.querySelectorAll('.modal')
+M.Modal.init(modais)
 
-nome:document.getElementById("nomeAdd").value,
-cargo:document.getElementById("cargoAdd").value,
-departamento:document.getElementById("departamentoAdd").value,
-salario:document.getElementById("salarioAdd").value,
-admissao:document.getElementById("admissaoAdd").value
+const selects = document.querySelectorAll('select')
+M.FormSelect.init(selects)
+
+})
+
+
+
+/* ABRIR MODAL PARA ADICIONAR */
+
+function abrirAdicionar(){
+
+funcionarioEditando = null
+
+document.getElementById("tituloForm").innerText = "Adicionar Funcionário"
+
+document.getElementById("nome").value = ""
+document.getElementById("cargo").value = ""
+document.getElementById("salario").value = ""
+document.getElementById("admissao").value = ""
+
+document.getElementById("departamento").value = ""
+
+M.updateTextFields()
+
+M.FormSelect.init(document.querySelectorAll('select'))
 
 }
 
-fetch("/add",{
+
+
+/* EDITAR FUNCIONÁRIO */
+
+function editarFuncionario(id,nome,cargo,departamento,salario,admissao){
+
+funcionarioEditando = id
+
+document.getElementById("tituloForm").innerText = "Editar Funcionário"
+
+document.getElementById("nome").value = nome
+document.getElementById("cargo").value = cargo
+document.getElementById("salario").value = salario
+document.getElementById("admissao").value = admissao
+
+document.getElementById("departamento").value = departamento
+
+M.updateTextFields()
+
+M.FormSelect.init(document.querySelectorAll('select'))
+
+var modal = M.Modal.getInstance(document.getElementById('modalFuncionario'))
+
+modal.open()
+
+}
+
+
+
+/* SALVAR FUNCIONÁRIO */
+
+function salvarFuncionario(){
+
+let dados = {
+
+nome:document.getElementById("nome").value,
+cargo:document.getElementById("cargo").value,
+departamento:document.getElementById("departamento").value,
+salario:document.getElementById("salario").value,
+admissao:document.getElementById("admissao").value
+
+}
+
+let url = "/add"
+
+if(funcionarioEditando){
+
+url = "/editar/" + funcionarioEditando
+
+}
+
+fetch(url,{
 
 method:"POST",
 
-headers:{"Content-Type":"application/json"},
+headers:{
+"Content-Type":"application/json"
+},
 
-body:JSON.stringify(data)
-
-})
-
-.then(()=>{
-
-M.toast({html:"Funcionário adicionado!"})
-
-location.reload()
+body:JSON.stringify(dados)
 
 })
+
+.then(()=>location.reload())
 
 }
 
 
-function editar(id){
 
-let data={
+/* MODAL DELETE */
 
-nome:document.getElementById("nome"+id).value,
-cargo:document.getElementById("cargo"+id).value,
-departamento:document.getElementById("departamento"+id).value,
-salario:document.getElementById("salario"+id).value,
-admissao:document.getElementById("admissao"+id).value
+function abrirModalDelete(id,nome){
+
+funcionarioDeletar = id
+
+document.getElementById("textoDelete").innerText =
+"Deseja remover o funcionário " + nome + "?"
+
+var modal = M.Modal.getInstance(document.getElementById('modalDelete'))
+
+modal.open()
 
 }
 
-fetch("/edit/"+id,{
 
-method:"POST",
 
-headers:{"Content-Type":"application/json"},
+function confirmarDelete(){
 
-body:JSON.stringify(data)
+fetch("/delete/" + funcionarioDeletar)
 
-})
-
-.then(()=>{
-
-M.toast({html:"Funcionário atualizado!"})
-
-location.reload()
-
-})
+.then(()=>location.reload())
 
 }
 
